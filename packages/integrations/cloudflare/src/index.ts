@@ -2,9 +2,12 @@ import type { AstroAdapter, AstroConfig, AstroIntegration } from 'astro';
 import esbuild from 'esbuild';
 import * as fs from 'fs';
 import { fileURLToPath } from 'url';
+import { NodeGlobalsPolyfillPlugin } from '@esbuild-plugins/node-globals-polyfill';
+import { NodeModulesPolyfillPlugin } from '@esbuild-plugins/node-modules-polyfill';
 
 type Options = {
 	mode: 'directory' | 'advanced';
+	node: boolean;
 };
 
 interface BuildConfig {
@@ -36,6 +39,7 @@ export default function createIntegration(args?: Options): AstroIntegration {
 	let _config: AstroConfig;
 	let _buildConfig: BuildConfig;
 	let needsBuildConfig = false;
+	const nodeCompat = args?.node === true;
 	const isModeDirectory = args?.mode === 'directory';
 
 	return {
@@ -101,6 +105,14 @@ export default function createIntegration(args?: Options): AstroIntegration {
 					format: 'esm',
 					bundle: true,
 					minify: true,
+					define: {
+						...(nodeCompat ? { global: 'globalThis' } : {}),
+					},
+					plugins: [
+						...(nodeCompat
+							? [NodeGlobalsPolyfillPlugin({ buffer: true }), NodeModulesPolyfillPlugin()]
+							: []),
+					],
 					banner: {
 						js: SHIM,
 					},
